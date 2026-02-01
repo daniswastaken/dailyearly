@@ -3,6 +3,7 @@
 # Daily WhatsApp Status Automation Script
 # Run this via cron at 01:00 AM daily
 #
+export PATH=$PATH:/home/daniswastaken/.nvm/versions/node/v24.13.0/bin
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/daily_status.log"
