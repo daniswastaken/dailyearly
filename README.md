@@ -9,8 +9,8 @@ dailyearly/
 ├── img_base.png      # Base image template (720x1278)
 ├── consolasb.ttf     # Consolas Bold font
 ├── generate.py       # Python image generator
-├── upload.js         # Node.js WhatsApp uploader
-├── run_daily.sh      # Daily automation script
+├── upload.js         # Node.js WhatsApp uploader (whatsapp-web.js)
+├── run_daily.sh      # Daily automation script (with Cron fix)
 ├── post_now.sh       # Debug: post immediately
 ├── package.json      # Node dependencies
 └── auth_info/        # WhatsApp session (created on first run)
@@ -18,105 +18,66 @@ dailyearly/
 
 ## 🚀 Setup
 
-### 1. Install Dependencies
+### 1. Dependency Install
+Run these commands to install the required system libraries for the headless browser and project dependencies:
 
 ```bash
-# Python (Pillow)
-pip install Pillow
+# Update and install system dependencies
+sudo apt-get update && sudo apt-get install -y libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
 
-# Node.js
-cd /home/daniswastaken/dailyearly
+# Install additional rendering libraries
+sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libglib2.0-0 libx11-6 libx11-xcb1 libxcb1 libxext6 libxi6 libxtst6 fonts-liberation
+
+# Install project dependencies
 npm install
+pip install pillow
 ```
 
-### 2. Make Scripts Executable
-
-```bash
-chmod +x run_daily.sh post_now.sh
-```
-
-### 3. First-Time WhatsApp Login
-
+### 2. First-Time WhatsApp Login
 ```bash
 # Run the uploader to scan QR code
 node upload.js
 ```
-
 Scan the QR code with WhatsApp (Settings > Linked Devices > Link a Device).  
 Session will be saved in `auth_info/` folder.
 
 ## 🛠️ Usage
 
 ### Debug: Post Status Now
-
 ```bash
-./post_now.sh
+./run_daily.sh --now
 # or
 npm run daily:now
 ```
 
-### Generate Image Only
-
-```bash
-python3 generate.py
-# or
-npm run generate
-```
-
-### Upload Only
-
-```bash
-node upload.js --now
-# or
-npm run post:now
-```
+### Manual Components
+- **Generate Image Only**: `python3 generate.py`
+- **Upload Only**: `node upload.js --now`
 
 ## ⏰ Automation (Cron)
 
 Add this line to your crontab (`crontab -e`):
 
 ```cron
-0 1 * * * /home/daniswastaken/dailyearly/run_daily.sh >> /home/daniswastaken/dailyearly/cron.log 2>&1
+0 1 * * * /home/(user)/dailyearly/run_daily.sh >> /home/(user)/dailyearly/cron.log 2>&1
 ```
 
-This runs every day at 01:00 AM. The script includes a random 1-60 minute delay to avoid bot detection.
+### ⚠️ Important: Node.js Path (NVM Users)
+Cron has a limited `PATH`. If you use NVM, you **must** ensure the absolute path to `node` is available in `run_daily.sh`.
+
+Update your `run_daily.sh` with your specific version:
+```bash
+export PATH=$PATH:/home/(user)/.nvm/versions/node/v24.13.0/bin
+```
 
 ## 📋 How It Works
 
-1. **generate.py**: Calculates year progress (e.g., `50.27%`) and renders it onto the base image with a progress bar
-2. **upload.js**: Connects to WhatsApp via Baileys and posts the image to your status
-3. **run_daily.sh**: Adds random delay, then runs both scripts in sequence
-
-## ⚠️ Important Notes
-
-- **Session Persistence**: Don't delete `auth_info/` folder or you'll need to re-scan QR
-- **Bot Detection**: The random delay in `run_daily.sh` helps avoid WhatsApp flagging automated posts
-- **Rate Limits**: Posting once daily should be safe; avoid posting too frequently
-- **Image Size**: Base image must be 720x1278 pixels
+1. **generate.py**: Calculates year progress and renders a progress bar onto the base image.
+2. **upload.js**: Uses `whatsapp-web.js` to simulate a browser session and post the image to `status@broadcast`.
+3. **run_daily.sh**: Adds a random 1-60 minute delay (to avoid bot detection) and then executes both scripts.
 
 ## 🔧 Troubleshooting
 
-**"Image not found"**
-- Run `python3 generate.py` first
-
-**"Connection closed, reconnecting..."**
-- Normal if first-time setup; scan QR when prompted
-
-**"Logged out"**
-- Delete `auth_info/` folder and re-scan QR code
-
-## 📦 Dependencies
-
-- Python 3.x + Pillow
-- Node.js 18+ 
-- @whiskeysockets/baileys
-- @hapi/boom
-- pino
-
-## Dependency Install
-sudo apt-get update && sudo apt-get install -y libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
-
-sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libglib2.0-0 libx11-6 libx11-xcb1 libxcb1 libxext6 libxi6 libxtst6 fonts-liberation
-
-npm install
-pip install pillow
+- **Visibility Issues**: If friends can't see the status, ensure your Privacy settings for "Status" are set to "My Contacts" and that you both have each other's numbers saved.
+- **Node not found**: Ensure the path in `run_daily.sh` matches your `which node` output.
+- **Session Reset**: If it stops working, delete the `auth_info/` folder and run `node upload.js` manually to re-scan.
