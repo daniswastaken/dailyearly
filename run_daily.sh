@@ -41,7 +41,7 @@ log "Image generated successfully"
 log "Uploading to WhatsApp..."
 
 # Run Node.js script
-node upload.js >> "$LOG_FILE" 2>&1
+node upload.js 2>&1 | tee -a "$LOG_FILE"
 
 if [ $? -ne 0 ]; then
     log "ERROR: Failed to upload to WhatsApp"
