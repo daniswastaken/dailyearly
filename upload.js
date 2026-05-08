@@ -71,6 +71,21 @@ client.on('ready', async () => {
     try {
         console.log('📤 Preparing to post status...');
 
+        // Patch for missing function in WhatsApp Web
+        console.log('patching WhatsApp Web functions...');
+        await client.pupPage.evaluate(() => {
+            try {
+                const gatingUtils = window.require('WAWebStatusGatingUtils');
+                if (gatingUtils && !gatingUtils.canCheckStatusRankingPosterGating) {
+                    gatingUtils.canCheckStatusRankingPosterGating = () => false;
+                    console.log('✅ Patched canCheckStatusRankingPosterGating');
+                }
+            } catch (e) {
+                // If the module isn't found, we might be on an older version or different structure
+                // But we don't want to crash here
+            }
+        });
+
         if (!fs.existsSync(IMAGE_PATH)) {
             throw new Error(`Image file not found at ${IMAGE_PATH}`);
         }
