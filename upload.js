@@ -39,6 +39,10 @@ const client = new Client({
     authStrategy: new LocalAuth({
         dataPath: AUTH_DIR
     }),
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+    },
     puppeteer: {
         headless: true,
         args: [
@@ -47,9 +51,13 @@ const client = new Client({
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-extensions',
+            '--disable-features=IsolateOrigins,site-per-process'
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        handleSIGINT: false,
+        handleSIGTERM: false
     }
 });
 
@@ -67,6 +75,9 @@ client.on('qr', (qr) => {
 client.on('ready', async () => {
     console.log('✅ Connected to WhatsApp!');
     console.log('👤 Authenticated as:', client.info.pushname, `(${client.info.wid.user})`);
+    
+    const version = await client.getWWebVersion();
+    console.log('📱 WhatsApp Web version:', version);
 
     try {
         console.log('📤 Preparing to post status...');
