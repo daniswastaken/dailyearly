@@ -18,6 +18,7 @@ dailyearly-1/
 │   └── post_now.sh   # Manual post utility
 ├── logs/             # Execution and cron logs
 ├── package.json      # Node.js dependencies
+├── requirements.txt  # Python dependencies
 └── final_status.jpg  # Generated status image
 ```
 
@@ -26,7 +27,6 @@ dailyearly-1/
 ### Requirements
 - Node.js (>= 18.0.0)
 - Python 3
-- Pillow (Python image library)
 
 ### Dependency Installation
 ```bash
@@ -34,7 +34,7 @@ dailyearly-1/
 npm install
 
 # Install Python dependencies
-pip install pillow
+pip install -r requirements.txt
 ```
 
 ### Authentication
@@ -68,7 +68,7 @@ Configure the system to run the update daily by adding the following to your cro
 ```
 
 ## Operational Logic
-1. `src/generate.py`: Calculates year progress and renders the results onto the template image.
+1. `src/generate.py`: Calculates year progress and fetches a random landscape background from `picsum.photos` to render the results onto the template image.
 2. `src/upload.js`: Utilizes `whatsapp-web.js` to authenticate and dispatch the generated image to your status broadcast.
 3. `scripts/run_daily.sh`: Introduces a randomized delay (1–60 minutes) to mitigate automated bot detection before executing the generation and upload sequence.
 
