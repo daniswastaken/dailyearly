@@ -1,10 +1,15 @@
 #!/bin/bash
 #
 # Daily WhatsApp Status Automation Script
-# Run this via cron at 01:00 AM daily
+# Optimized for Cron and environment portability
 #
-export PATH=$PATH:/home/daniswastaken/.nvm/versions/node/v24.13.0/bin
 
+# 1. Robust PATH setup
+# This ensures standard binary locations are searchable by Cron
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
+# 2. Project Location
+# Auto-detect project root based on script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$PROJECT_DIR/logs"
@@ -13,35 +18,46 @@ LOG_FILE="$LOG_DIR/daily_status.log"
 # Ensure log directory exists
 mkdir -p "$LOG_DIR"
 
-# Logging function
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
 log "=========================================="
-log "Starting daily status update"
+log "Cycle triggered at $(date)"
 
-# Random sleep between 1 and 60 minutes to avoid bot detection
-# This makes the posting time vary daily
-if [ "$1" != "--now" ] && [ "$1" != "-n" ]; then
-    RANDOM_DELAY=$((RANDOM % 3600 + 60))  # 60 to 3660 seconds (1-61 minutes)
-    log "Sleeping for $RANDOM_DELAY seconds to randomize post time..."
-    sleep $RANDOM_DELAY
-else
-    log "Debug mode: Skipping random delay"
-fi
-
-log "Starting upload process (this will auto-generate the image)..."
-
-# Run Node.js script
-node "$PROJECT_DIR/src/upload.js" 2>&1 | tee -a "$LOG_FILE"
-
-if [ $? -ne 0 ]; then
-    log "ERROR: Failed to upload to WhatsApp"
+# 3. Environment Check
+# Verify dependencies are available before proceeding
+if ! command -v node &> /dev/null; then
+    log "CRITICAL ERROR: 'node' not found in PATH ($PATH). Execution halted."
     exit 1
 fi
 
-log "Status posted successfully!"
-log "=========================================="
+if ! command -v python3 &> /dev/null; then
+    log "CRITICAL ERROR: 'python3' not found in PATH. Execution halted."
+    exit 1
+fi
 
-exit 0
+# 4. Change to project directory
+cd "$PROJECT_DIR" || { log "CRITICAL ERROR: Could not access $PROJECT_DIR"; exit 1; }
+
+# 5. Random Delay (Skip if --now or -n is passed)
+if [[ "$1" != "--now" && "$1" != "-n" ]]; then
+    RANDOM_DELAY=$((RANDOM % 3600 + 60))
+    log "Randomizing post: Sleeping for $RANDOM_DELAY seconds..."
+    sleep $RANDOM_DELAY
+else
+    log "Immediate execution mode enabled."
+fi
+
+log "Initiating status upload pipeline..."
+
+# 6. Execute
+node src/upload.js 2>&1 | tee -a "$LOG_FILE"
+
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
+    log "CRITICAL ERROR: Status upload failed."
+    exit 1
+fi
+
+log "Daily automation cycle completed successfully."
+log "=========================================="
