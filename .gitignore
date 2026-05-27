@@ -3,3 +3,6 @@ node_modules
 auth_info
 final_status.jpg
 jwst
+.wwebjs_auth
+.env
+.baileys_auth

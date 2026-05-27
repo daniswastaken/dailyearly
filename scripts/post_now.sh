@@ -6,22 +6,16 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 echo "🔧 Debug: Posting status NOW (no delay)"
 echo ""
 
-cd "$SCRIPT_DIR"
-
-echo "📊 Generating status image..."
-python3 generate.py
-
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to generate image"
-    exit 1
-fi
+cd "$PROJECT_DIR"
 
 echo ""
 echo "📤 Uploading to WhatsApp..."
-node upload.js --now
+node src/upload.js --now
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to upload"
