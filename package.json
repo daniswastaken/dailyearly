@@ -2,13 +2,13 @@
   "name": "dailyearly-whatsapp-status",
   "version": "1.0.0",
   "description": "Automated WhatsApp Status bot for year progress",
-  "main": "upload.js",
+  "main": "src/upload.js",
   "scripts": {
-    "post": "node upload.js",
-    "post:now": "node upload.js --now",
-    "generate": "python3 generate.py",
-    "daily": "bash run_daily.sh",
-    "daily:now": "bash run_daily.sh --now"
+    "post": "node src/upload.js",
+    "post:now": "node src/upload.js --now",
+    "generate": "python3 src/generate.py",
+    "daily": "bash scripts/run_daily.sh",
+    "daily:now": "bash scripts/run_daily.sh --now"
   },
   "dependencies": {
     "qrcode-terminal": "^0.12.0",

@@ -6,12 +6,13 @@ from datetime import datetime
 
 # Configuration
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-FONT_PATH = os.path.join(SCRIPT_DIR, "consolasb.ttf")
-OUTPUT_PATH = os.path.join(SCRIPT_DIR, "final_status.jpg")
-OVERLAY_IMAGE_PATH = os.path.join(SCRIPT_DIR, "overlay_image.png")
-FALLBACK_IMAGE = os.path.join(SCRIPT_DIR, "img_base.png")
-JWST_DIR = os.path.join(SCRIPT_DIR, "jwst")
-STATE_FILE = os.path.join(SCRIPT_DIR, "current_image.txt")
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+FONT_PATH = os.path.join(PROJECT_ROOT, "assets", "consolasb.ttf")
+OUTPUT_PATH = os.path.join(PROJECT_ROOT, "final_status.jpg")
+OVERLAY_IMAGE_PATH = os.path.join(PROJECT_ROOT, "assets", "overlay_image.png")
+FALLBACK_IMAGE = os.path.join(PROJECT_ROOT, "assets", "img_base.png")
+JWST_DIR = os.path.join(PROJECT_ROOT, "jwst")
+STATE_FILE = os.path.join(PROJECT_ROOT, "current_image.txt")
 
 # Ensure jwst directory exists
 os.makedirs(JWST_DIR, exist_ok=True)

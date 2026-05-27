@@ -11,8 +11,9 @@ const path = require('path');
 
 // Configuration
 const SCRIPT_DIR = __dirname;
-const AUTH_DIR = path.join(SCRIPT_DIR, 'auth_info');
-const IMAGE_PATH = path.join(SCRIPT_DIR, 'final_status.jpg');
+const PROJECT_ROOT = path.dirname(SCRIPT_DIR);
+const AUTH_DIR = path.join(PROJECT_ROOT, 'auth_info');
+const IMAGE_PATH = path.join(PROJECT_ROOT, 'final_status.jpg');
 
 // Parse CLI arguments
 const args = process.argv.slice(2);

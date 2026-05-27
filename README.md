@@ -1,83 +1,78 @@
-# DailyEarly - WhatsApp Year Progress Status Bot
+# DailyEarly: WhatsApp Year Progress Status Bot
 
-Automated WhatsApp Status bot that posts your year's progress percentage daily.
+DailyEarly is an automated utility that calculates the current year's progress percentage and publishes it as a WhatsApp status.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
-dailyearly/
-├── img_base.png      # Base image template (720x1278)
-├── consolasb.ttf     # Consolas Bold font
-├── generate.py       # Python image generator
-├── upload.js         # Node.js WhatsApp uploader (whatsapp-web.js)
-├── run_daily.sh      # Daily automation script (with Cron fix)
-├── post_now.sh       # Debug: post immediately
-├── package.json      # Node dependencies
-└── auth_info/        # WhatsApp session (created on first run)
+dailyearly-1/
+├── src/              # Source code
+│   ├── generate.py   # Year progress calculator & image generator
+│   └── upload.js     # WhatsApp interface (whatsapp-web.js)
+├── assets/           # Static assets
+│   ├── img_base.png  # Base template (720x1278)
+│   ├── consolasb.ttf # Visualization font
+│   └── overlay_image.png # UI overlay
+├── scripts/          # Automation and utility scripts
+│   ├── run_daily.sh  # Main automation wrapper
+│   └── post_now.sh   # Manual post utility
+├── logs/             # Execution and cron logs
+├── package.json      # Node.js dependencies
+└── final_status.jpg  # Generated status image
 ```
 
-## 🚀 Setup
+## Setup
 
-### 1. Dependency Install
-Run these commands to install the required system libraries for the headless browser and project dependencies:
+### Requirements
+- Node.js (>= 18.0.0)
+- Python 3
+- Pillow (Python image library)
 
+### Dependency Installation
 ```bash
-# Update and install system dependencies
-sudo apt-get update && sudo apt-get install -y libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2
-
-# Install additional rendering libraries
-sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libglib2.0-0 libx11-6 libx11-xcb1 libxcb1 libxext6 libxi6 libxtst6 fonts-liberation
-
-# Install project dependencies
+# Install Node.js dependencies
 npm install
+
+# Install Python dependencies
 pip install pillow
 ```
 
-### 2. First-Time WhatsApp Login
+### Authentication
+Initialize the WhatsApp session:
 ```bash
-# Run the uploader to scan QR code
-node upload.js
+node src/upload.js
 ```
-Scan the QR code with WhatsApp (Settings > Linked Devices > Link a Device).  
-Session will be saved in `auth_info/` folder.
+Scan the QR code in your terminal via WhatsApp (Linked Devices). The session will be cached in the root `.wwebjs_auth` directory.
 
-## 🛠️ Usage
+## Usage
 
-### Debug: Post Status Now
+### Automated Pipeline Execution
+To generate and post the status immediately:
 ```bash
-./run_daily.sh --now
-# or
+# Using npm
 npm run daily:now
+
+# Using the shell script
+bash scripts/run_daily.sh --now
 ```
 
-### Manual Components
-- **Generate Image Only**: `python3 generate.py`
-- **Upload Only**: `node upload.js --now`
+### Component Execution
+- Generate progress image: `npm run generate`
+- Upload status image: `npm run post`
 
-## ⏰ Automation (Cron)
-
-Add this line to your crontab (`crontab -e`):
+## Automation (Cron)
+Configure the system to run the update daily by adding the following to your crontab (`crontab -e`):
 
 ```cron
-0 1 * * * /home/(user)/dailyearly/run_daily.sh >> /home/(user)/dailyearly/cron.log 2>&1
+0 1 * * * /path/to/dailyearly-1/scripts/run_daily.sh >> /path/to/dailyearly-1/logs/cron.log 2>&1
 ```
 
-### ⚠️ Important: Node.js Path (NVM Users)
-Cron has a limited `PATH`. If you use NVM, you **must** ensure the absolute path to `node` is available in `run_daily.sh`.
+## Operational Logic
+1. `src/generate.py`: Calculates year progress and renders the results onto the template image.
+2. `src/upload.js`: Utilizes `whatsapp-web.js` to authenticate and dispatch the generated image to your status broadcast.
+3. `scripts/run_daily.sh`: Introduces a randomized delay (1–60 minutes) to mitigate automated bot detection before executing the generation and upload sequence.
 
-Update your `run_daily.sh` with your specific version:
-```bash
-export PATH=$PATH:/home/(user)/.nvm/versions/node/v24.13.0/bin
-```
-
-## 📋 How It Works
-
-1. **generate.py**: Calculates year progress and renders a progress bar onto the base image.
-2. **upload.js**: Uses `whatsapp-web.js` to simulate a browser session and post the image to `status@broadcast`.
-3. **run_daily.sh**: Adds a random 1-60 minute delay (to avoid bot detection) and then executes both scripts.
-
-## 🔧 Troubleshooting
-
-- **Visibility Issues**: If friends can't see the status, ensure your Privacy settings for "Status" are set to "My Contacts" and that you both have each other's numbers saved.
-- **Node not found**: Ensure the path in `run_daily.sh` matches your `which node` output.
-- **Session Reset**: If it stops working, delete the `auth_info/` folder and run `node upload.js` manually to re-scan.
+## Troubleshooting
+- **Session Authentication**: If posting fails, delete the `.wwebjs_auth` directory and re-run `node src/upload.js` to re-authenticate.
+- **Visibility**: Confirm WhatsApp privacy settings permit status updates to be viewed by your contacts.
+- **Node.js Environment**: If automation fails via cron, ensure the environment `PATH` in `scripts/run_daily.sh` is correctly configured to locate the Node.js executable.

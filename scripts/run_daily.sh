@@ -6,7 +6,7 @@
 export PATH=$PATH:/home/daniswastaken/.nvm/versions/node/v24.13.0/bin
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="$SCRIPT_DIR/daily_status.log"
+LOG_FILE="$SCRIPT_DIR/logs/daily_status.log"
 
 # Logging function
 log() {
@@ -29,8 +29,7 @@ fi
 log "Generating status image..."
 
 # Run Python script
-cd "$SCRIPT_DIR"
-python3 generate.py >> "$LOG_FILE" 2>&1
+python3 "$SCRIPT_DIR/src/generate.py" >> "$LOG_FILE" 2>&1
 
 if [ $? -ne 0 ]; then
     log "ERROR: Failed to generate image"
@@ -41,7 +40,7 @@ log "Image generated successfully"
 log "Uploading to WhatsApp..."
 
 # Run Node.js script
-node upload.js 2>&1 | tee -a "$LOG_FILE"
+node "$SCRIPT_DIR/src/upload.js" 2>&1 | tee -a "$LOG_FILE"
 
 if [ $? -ne 0 ]; then
     log "ERROR: Failed to upload to WhatsApp"
