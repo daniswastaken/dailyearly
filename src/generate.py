@@ -1,5 +1,4 @@
 import os
-import sys
 import random
 import requests
 from io import BytesIO
@@ -29,8 +28,11 @@ BAR_COLOR = (255, 255, 255)
 def calculate_year_progress():
     """Calculate the current year's progress as a percentage."""
     now = datetime.now()
+    print(f"Now: {now}")
     year_start = datetime(now.year, 1, 1)
+    print(f"Year start: {year_start}")
     year_end = datetime(now.year + 1, 1, 1)
+    print(f"Year end: {year_end}")
     total_seconds = (year_end - year_start).total_seconds()
     elapsed_seconds = (now - year_start).total_seconds()
     return round((elapsed_seconds / total_seconds) * 100, 2)
