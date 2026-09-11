@@ -12,12 +12,12 @@ const { execSync } = require('child_process');
 const PROJECT_ROOT = path.dirname(__dirname);
 const AUTH_DIR = path.join(PROJECT_ROOT, '.baileys_auth');
 const IMAGE_PATH = path.join(PROJECT_ROOT, 'final_status.jpg');
-const GENERATOR_PATH = path.join(PROJECT_ROOT, 'src', 'generate.py');
+const GENERATOR_PATH = path.join(PROJECT_ROOT, 'src', 'generate.js');
 
 // Ensure image is generated
 console.log('🔄 Running image generator...');
 try {
-    execSync(`python3 "${GENERATOR_PATH}"`, { stdio: 'inherit' });
+    execSync(`node "${GENERATOR_PATH}"`, { stdio: 'inherit' });
 } catch (error) {
     console.error('❌ Failed to generate image:', error.message);
     process.exit(1);

@@ -6,20 +6,25 @@
   "scripts": {
     "post": "node src/upload.js",
     "post:now": "node src/upload.js --now",
-    "generate": "python3 src/generate.py",
+    "generate": "node src/generate.js",
     "daily": "bash scripts/run_daily.sh",
     "daily:now": "bash scripts/run_daily.sh --now"
   },
   "dependencies": {
-    "qrcode-terminal": "^0.12.0",
     "@whiskeysockets/baileys": "latest",
-    "pino": "^9.0.0"
+    "canvas": "^3.2.3",
+    "node-schedule-tz": "^1.2.1-4",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.35.4"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "allowScripts": {
     "@whiskeysockets/baileys@7.0.0-rc14": true,
-    "protobufjs@7.6.5": true
+    "protobufjs@7.6.5": true,
+    "sharp@0.35.4": true,
+    "canvas@3.2.3": true
   }
 }
