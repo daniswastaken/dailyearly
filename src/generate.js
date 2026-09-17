@@ -1,5 +1,5 @@
 const sharp = require('sharp');
-const { createCanvas } = require('canvas');
+const { createCanvas, registerFont } = require('canvas');
 const fs = require('fs');
 const path = require('path');
 
@@ -8,6 +8,8 @@ const OUTPUT_PATH = path.join(PROJECT_ROOT, 'final_status.jpg');
 const OVERLAY_IMAGE_PATH = path.join(PROJECT_ROOT, 'assets', 'overlay_image.png');
 const FALLBACK_IMAGE = path.join(PROJECT_ROOT, 'assets', 'img_base.png');
 const TEXTURE_DIR = path.join(PROJECT_ROOT, 'assets', 'textures');
+const FONT_PATH = path.join(PROJECT_ROOT, 'assets', 'consolasb.ttf');
+registerFont(FONT_PATH, { family: 'Consolas Bold' });
 
 const FINAL_WIDTH = 720;
 const FINAL_HEIGHT = 1278;
@@ -117,7 +119,7 @@ async function generateStatusImage() {
     const ctx = canvas.getContext('2d');
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${FONT_SIZE}px Consolas`;
+    ctx.font = `bold ${FONT_SIZE}px 'Consolas Bold'`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`${percentage.toFixed(2)}%`, TEXT_X, TEXT_Y);

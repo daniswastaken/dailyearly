@@ -1,78 +1,59 @@
 # DailyEarly: WhatsApp Year Progress Status Bot
 
-DailyEarly is an automated utility that calculates the current year's progress percentage and publishes it as a WhatsApp status.
-
-## Project Structure
-
-```
-dailyearly-1/
-├── src/              # Source code
-│   ├── generate.py   # Year progress calculator & image generator
-│   └── upload.js     # WhatsApp interface (baileys)
-├── assets/           # Static assets
-│   ├── img_base.png  # Base template (fallback)
-│   ├── consolasb.ttf # Visualization font
-│   ├── overlay_image.png # UI overlay
-│   └── textures/     # Background texture layers
-├── scripts/          # Automation and utility scripts
-│   ├── run_daily.sh  # Main automation wrapper
-│   └── post_now.sh   # Manual post utility
-├── logs/             # Execution and cron logs
-├── package.json      # Node.js dependencies
-├── requirements.txt  # Python dependencies
-└── final_status.jpg  # Generated status image
-```
+DailyEarly generates a year-progress image and publishes it as a WhatsApp status.
 
 ## Setup
 
-### Requirements
-- Node.js (>= 18.0.0)
-- Python 3
+Requires Node.js >= 18 and the dependencies in `package.json`.
 
-### Dependency Installation
 ```bash
-# Install Node.js dependencies (baileys & pino)
 npm install
-
-# Install Python dependencies (Pillow, requests)
-pip install -r requirements.txt
+npm start
 ```
 
-### Authentication
-Initialize the WhatsApp session:
-```bash
-node src/upload.js
-```
-Scan the QR code in your terminal. The session will be cached in the `.baileys_auth` directory.
+Scan the terminal QR code on first login. Credentials are stored in `.baileys_auth`.
 
-## Usage
+## 24/7 operation
 
-### Automated Pipeline Execution
-To generate and post the status immediately:
-```bash
-# Using npm
-npm run daily:now
+Keep one instance of `node src/upload.js` (or `npm start`) running continuously.
 
-# Using the shell script
-bash scripts/run_daily.sh --now
-```
+- Generates and uploads a fresh image after WhatsApp connects on **every process start**.
+- Generates and uploads again at **00:00 (midnight)** each day.
+- Uses the process/server timezone, including for image year-progress calculations. Midnight means 12 AM, not 12 PM.
+- Reconnects automatically after temporary disconnections, without posting again just because it reconnected.
+- If disconnected at midnight, queues one fresh upload for reconnection, not one per missed day.
+- Uploads cannot overlap. Generation or send errors are logged; the next scheduled attempt remains active. Uncertain sends are not automatically retried, to avoid duplicates.
+- No longer stops the Pterodactyl server or exits after posting. A logged-out session still exits with an error and requires re-authentication.
 
-### Component Execution
-- Generate progress image: `npm run generate`
-- Upload status image: `npm run post`
+Daily scheduling follows calendar midnight, not 24 hours from startup. The first midnight upload can therefore be less than 24 hours after the startup upload; daylight-saving changes can also change the interval. Restarting the process intentionally triggers another startup upload.
 
-## Automation (Cron)
-Configure the system to run the update daily by adding the following to your crontab (`crontab -e`):
+### Pterodactyl
 
-```cron
-0 1 * * * /path/to/dailyearly-1/scripts/run_daily.sh >> /path/to/dailyearly-1/logs/cron.log 2>&1
-```
+1. Set the startup command to `node src/upload.js` or `npm start`.
+2. Disable the old scheduled start/stop/restart tasks for this bot.
+3. Set the `TZ` environment variable to your desired timezone. For example, for Indonesian Western Time:
 
-## Operational Logic
-1. `src/generate.py`: Calculates year progress, fetches a random landscape background from `picsum.photos`, overlays a random texture from `assets/textures/`, and applies the UI overlay.
-2. `src/upload.js`: Utilizes `@whiskeysockets/baileys` to authenticate and dispatch the generated image as a status update.
-3. `scripts/run_daily.sh`: Introduces a randomized delay (1–60 minutes) to mitigate automated bot detection before executing the generation and upload sequence.
+   ```bash
+   TZ=Asia/Jakarta node src/upload.js
+   ```
 
-## Troubleshooting
-- **Session Authentication**: If posting fails, delete the `.baileys_auth` directory and re-run `node src/upload.js` to re-authenticate.
-- **Node.js Environment**: If automation fails via cron, ensure the environment `PATH` in `scripts/run_daily.sh` is correctly configured to locate the Node.js executable.
+   Without `TZ`, the server's default timezone is used (often UTC). Check the logged next-upload time.
+
+4. Start the server and leave it running. Do not launch multiple instances.
+
+The previous hardcoded Pterodactyl power API credential is no longer needed and has been removed from the script. Revoke or rotate that credential in the panel.
+
+## Commands
+
+- `npm start`, `npm run post`, `npm run daily`: start the continuously running bot.
+- `npm run post:now`, `npm run daily:now`: compatibility aliases; startup already uploads immediately, and the process stays running.
+- `npm run generate`: generate `final_status.jpg` without uploading.
+- `npm test`: run mocked scheduling and connection tests without contacting WhatsApp.
+
+## Files
+
+- `src/generate.js`: year-progress calculation and image generation using Canvas and Sharp.
+- `src/upload.js`: WhatsApp authentication, reconnection, uploads, and midnight scheduling.
+- `assets/`: fonts, overlays, textures, and fallback background.
+- `final_status.jpg`: generated output, refreshed before each upload.
+- `.baileys_auth/`: saved WhatsApp credentials; keep private.

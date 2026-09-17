@@ -1,53 +1,107 @@
-const { 
-    default: makeWASocket, 
-    useMultiFileAuthState, 
-    DisconnectReason 
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
 const qrcode = require('qrcode-terminal');
-const { execSync } = require('child_process');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 
+const runFile = promisify(execFile);
 const PROJECT_ROOT = path.dirname(__dirname);
 const AUTH_DIR = path.join(PROJECT_ROOT, '.baileys_auth');
 const IMAGE_PATH = path.join(PROJECT_ROOT, 'final_status.jpg');
 const GENERATOR_PATH = path.join(PROJECT_ROOT, 'src', 'generate.js');
 
-// Ensure image is generated
-console.log('🔄 Running image generator...');
-try {
-    execSync(`node "${GENERATOR_PATH}"`, { stdio: 'inherit' });
-} catch (error) {
-    console.error('❌ Failed to generate image:', error.message);
-    process.exit(1);
+let sock = null;
+let connected = false;
+let uploading = false;
+let midnightTimer = null;
+let reconnectTimer = null;
+let pendingUpload = true; // One startup upload; reconnects do not create new uploads.
+
+function scheduleNextMidnightUpload() {
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(24, 0, 0, 0); // Calendar midnight in the process timezone (TZ).
+    clearTimeout(midnightTimer);
+    console.log(`⏰ Next upload: ${next.toString()}`);
+    midnightTimer = setTimeout(() => {
+        pendingUpload = true;
+        scheduleNextMidnightUpload();
+        runUpload();
+    }, next - now);
 }
 
-// Check if image exists
-if (!fs.existsSync(IMAGE_PATH)) {
-    console.error(`❌ Image not found: ${IMAGE_PATH}`);
-    process.exit(1);
+async function runUpload() {
+    if (!pendingUpload || uploading || !connected) return;
+    uploading = true;
+    pendingUpload = false;
+    const uploadSocket = sock;
+
+    try {
+        // Allow a newly opened socket to settle before generating and sending.
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log('🔄 Running image generator...');
+        const { stdout, stderr } = await runFile(process.execPath, [GENERATOR_PATH], {
+            cwd: PROJECT_ROOT,
+            timeout: 120000
+        });
+        if (stdout) console.log(stdout.trim());
+        if (stderr) console.error(stderr.trim());
+        if (!fs.existsSync(IMAGE_PATH)) throw new Error(`Image not found: ${IMAGE_PATH}`);
+
+        if (!connected || sock !== uploadSocket) {
+            // Nothing sent yet. Keep one catch-up upload for the next connection.
+            pendingUpload = true;
+            return;
+        }
+
+        await postStatus(uploadSocket);
+    } catch (error) {
+        // Do not retry an uncertain send: WhatsApp may already have accepted it.
+        console.error('❌ Upload failed; next attempt at midnight:', error);
+    } finally {
+        uploading = false;
+        if (pendingUpload && connected) runUpload();
+    }
 }
 
-// Initialize
-console.log('🚀 Starting WhatsApp client...');
-console.log('📂 Auth directory:', AUTH_DIR);
-console.log('🖼️ Image path:', IMAGE_PATH);
+function scheduleReconnect() {
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        startConnection();
+    }, 5000);
+}
+
+async function startConnection() {
+    try {
+        await connectToWhatsApp();
+    } catch (error) {
+        connected = false;
+        console.error('❌ Connection failed; retrying in 5 seconds:', error);
+        scheduleReconnect();
+    }
+}
 
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-
-    const sock = makeWASocket({
+    const client = makeWASocket({
         logger: pino({ level: 'silent' }),
         auth: state,
     });
+    sock = client;
 
-    sock.ev.on('creds.update', saveCreds);
+    client.ev.on('creds.update', () => {
+        saveCreds().catch(error => console.error('❌ Failed to save credentials:', error));
+    });
 
-    sock.ev.on('connection.update', (update) => {
-        console.log('Connection update:', update);
-        
-        // Explicitly handle QR code
+    client.ev.on('connection.update', (update) => {
+        if (sock !== client) return;
         if (update.qr) {
             qrcode.generate(update.qr, { small: true });
             console.log('Scan the QR code above.');
@@ -55,49 +109,44 @@ async function connectToWhatsApp() {
 
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) {
-                connectToWhatsApp();
+            connected = false;
+            sock = null;
+            const loggedOut = lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut;
+            if (loggedOut) {
+                console.error('🔒 Logged out. Re-authenticate before restarting the bot.');
+                process.exit(1);
+            } else {
+                console.log('🔌 Disconnected; reconnecting in 5 seconds.');
+                scheduleReconnect();
             }
         } else if (connection === 'open') {
+            connected = true;
             console.log('Connection opened!');
-            postStatus(sock);
+            runUpload();
         }
     });
 }
 
-async function postStatus(sock) {
-    try {
-        console.log('📸 Uploading image...');
-        
-        // Add a slight delay to ensure the socket is truly ready
-        await new Promise(resolve => setTimeout(resolve, 5000));
+async function postStatus(client) {
+    console.log('📸 Uploading image...');
+    // Get contacts from the auth folder, retaining the existing audience behavior.
+    const authFiles = fs.readdirSync(AUTH_DIR);
+    const contactJids = authFiles
+        .filter(f => f.startsWith('lid-mapping-') && f.endsWith('.json') && !f.includes('reverse'))
+        .map(f => f.replace('lid-mapping-', '').replace('.json', '') + '@s.whatsapp.net');
 
-        // Get contacts from auth folder as a workaround since no store is used
-        const authFiles = fs.readdirSync(AUTH_DIR);
-        const contactJids = authFiles
-            .filter(f => f.startsWith('lid-mapping-') && f.endsWith('.json') && !f.includes('reverse'))
-            .map(f => f.replace('lid-mapping-', '').replace('.json', '') + '@s.whatsapp.net');
-        
-        // Ensure our own JID is included so it shows up on our device
-        const myJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-        if (!contactJids.includes(myJid)) {
-            contactJids.push(myJid);
-        }
+    const myJid = client.user.id.split(':')[0] + '@s.whatsapp.net';
+    if (!contactJids.includes(myJid)) contactJids.push(myJid);
 
-        await sock.sendMessage('status@broadcast', {
-            image: fs.readFileSync(IMAGE_PATH)
-        }, {
-            broadcast: true,
-            statusJidList: contactJids
-        });
-        
-        console.log('✅ Status sent request.');
-        setTimeout(() => process.exit(0), 5000);
-    } catch (err) {
-        console.error('❌ Failed to post:', err);
-        process.exit(1);
-    }
+    await client.sendMessage('status@broadcast', {
+        image: fs.readFileSync(IMAGE_PATH)
+    }, {
+        broadcast: true,
+        statusJidList: contactJids
+    });
+    console.log('✅ Status sent request.');
 }
 
-connectToWhatsApp();
+console.log('🚀 Starting DailyEarly (24/7 mode). Startup upload, then daily at midnight.');
+scheduleNextMidnightUpload();
+startConnection();
