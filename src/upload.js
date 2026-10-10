@@ -73,11 +73,15 @@ async function runUpload() {
 
         await postStatus(uploadSocket);
     } catch (error) {
-        // Do not retry an uncertain send: WhatsApp may already have accepted it.
-        console.error('❌ Upload failed; next attempt at midnight:', error);
+        // Retry until successful: keep pending upload alive.
+        console.error('❌ Upload failed; retrying:', error);
+        pendingUpload = true;
     } finally {
         uploading = false;
-        if (pendingUpload && connected) runUpload();
+        if (pendingUpload && connected) {
+            // Retry continuously with a 30-second delay to avoid flooding.
+            setTimeout(runUpload, 30000);
+        }
     }
 }
 
