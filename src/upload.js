@@ -1,3 +1,7 @@
+require('dotenv').config();
+// Always schedule in WIB, regardless of the host or panel timezone.
+process.env.TZ = 'Asia/Jakarta';
+
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -22,13 +26,20 @@ let uploading = false;
 let midnightTimer = null;
 let reconnectTimer = null;
 let pendingUpload = true; // One startup upload; reconnects do not create new uploads.
+const JITTER_WINDOW_MS = 60 * 60 * 1000; // 00:00-01:00 anti-bot-detection window.
+
+function getDailyJitterMs() {
+    return Math.floor(Math.random() * (JITTER_WINDOW_MS + 1));
+}
 
 function scheduleNextMidnightUpload() {
     const now = new Date();
-    const next = new Date(now);
-    next.setHours(24, 0, 0, 0); // Calendar midnight in the process timezone (TZ).
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0); // Next midnight in Asia/Jakarta (WIB).
+    const jitter = getDailyJitterMs();
+    const next = new Date(midnight.getTime() + jitter);
     clearTimeout(midnightTimer);
-    console.log(`⏰ Next upload: ${next.toString()}`);
+    console.log(`⏰ Next upload: ${next.toString()} (midnight + ${Math.round(jitter / 1000)}s jitter)`);
     midnightTimer = setTimeout(() => {
         pendingUpload = true;
         scheduleNextMidnightUpload();
@@ -147,6 +158,6 @@ async function postStatus(client) {
     console.log('✅ Status sent request.');
 }
 
-console.log('🚀 Starting DailyEarly (24/7 mode). Startup upload, then daily at midnight.');
+console.log('🚀 Starting DailyEarly (24/7 mode). Startup upload, then daily at midnight + 0-60m jitter.');
 scheduleNextMidnightUpload();
 startConnection();

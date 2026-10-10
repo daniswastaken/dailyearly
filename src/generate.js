@@ -1,3 +1,7 @@
+require('dotenv').config();
+// Keep image dates consistent with the upload schedule, including standalone runs.
+process.env.TZ = 'Asia/Jakarta';
+
 const sharp = require('sharp');
 const { createCanvas, registerFont } = require('canvas');
 const fs = require('fs');
@@ -30,13 +34,68 @@ function calculateYearProgress() {
     return Math.round((elapsedMs / totalMs) * 10000) / 100;
 }
 
+const PEXELS_API_URL = 'https://api.pexels.com/v1/search';
+const PEXELS_QUERIES = [
+    'rain window drops',
+    'rainy city night',
+    'rain forest moody',
+    'rain puddle reflection',
+    'heavy rain dark'
+];
+
+async function downloadImage(url, label) {
+    const res = await fetch(url, { redirect: 'follow' });
+    if (!res.ok) throw new Error(`${label} HTTP ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 1024) throw new Error(`${label} response too small (${buf.length} bytes)`);
+    console.log(`Fetched ${label} (${buf.length} bytes)`);
+    return buf;
+}
+
+async function fetchPexelsBackground() {
+    const key = process.env.PEXELS_API_KEY;
+    if (!key) return null;
+    const page = 1 + Math.floor(Math.random() * 20);
+    const query = PEXELS_QUERIES[Math.floor(Math.random() * PEXELS_QUERIES.length)];
+    const url = `${PEXELS_API_URL}?query=${encodeURIComponent(query)}&orientation=portrait&size=large&per_page=30&page=${page}`;
+    const res = await fetch(url, { headers: { Authorization: key } });
+    if (!res.ok) throw new Error(`Pexels search HTTP ${res.status}`);
+    const data = await res.json();
+    const photos = data.photos || [];
+    if (photos.length === 0) throw new Error(`Pexels returned no photos for "${query}"`);
+    const photo = photos[Math.floor(Math.random() * photos.length)];
+    const srcUrl = photo.src && (photo.src.large2x || photo.src.portrait || photo.src.large);
+    if (!srcUrl) throw new Error('Pexels photo missing src URL');
+    const buf = await downloadImage(srcUrl, `Pexels "${query}" photo ${photo.id}`);
+    return buf;
+}
+
+async function fetchPicsumBackground() {
+    // Old style: fully random, landscape, cover-cropped to portrait.
+    return downloadImage('https://picsum.photos/1920/1080', 'Picsum background');
+}
+
 async function fetchBackground() {
+    // Test hook for vibe comparisons: force a specific background URL.
+    if (process.env.BG_OVERRIDE_URL) {
+        try {
+            return await downloadImage(process.env.BG_OVERRIDE_URL, 'override background');
+        } catch (e) {
+            console.log(`Warning: Override background failed: ${e.message}. Continuing.`);
+        }
+    }
+    // BG_SOURCE=picsum (default, old style) or pexels. Switch without code edits.
+    if ((process.env.BG_SOURCE || 'picsum').toLowerCase() === 'pexels') {
+        try {
+            const pexels = await fetchPexelsBackground();
+            if (pexels) return pexels;
+            console.log('Pexels returned nothing; falling back to Picsum.');
+        } catch (e) {
+            console.log(`Warning: Pexels failed: ${e.message}. Falling back to Picsum.`);
+        }
+    }
     try {
-        const res = await fetch('https://picsum.photos/1920/1080', { redirect: 'follow' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const buf = Buffer.from(await res.arrayBuffer());
-        console.log(`Fetched remote background (${buf.length} bytes)`);
-        return buf;
+        return await fetchPicsumBackground();
     } catch (e) {
         console.log(`Warning: Failed to fetch remote background: ${e.message}. Falling back.`);
         if (fs.existsSync(FALLBACK_IMAGE)) {
